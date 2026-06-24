@@ -1,25 +1,91 @@
 #include <windows.h>
-#include <string>
 
-// Plugin name
-const wchar_t pluginName[] = L"Basware Utility Tools";
+#define PLUGIN_NAME L"Basware Utility Tools"
 
-// Simple message box (About)
-void showAbout() {
-    MessageBox(NULL, L"Basware Utility Tools v1.0\nCreated for Basware XML/JSON handling",
-               pluginName, MB_OK);
+struct NppData
+{
+    HWND _nppHandle;
+    HWND _scintillaMainHandle;
+    HWND _scintillaSecondHandle;
+};
+
+typedef void (*PFUNCPLUGINCMD)();
+
+struct ShortcutKey
+{
+    bool _isCtrl;
+    bool _isAlt;
+    bool _isShift;
+    unsigned char _key;
+};
+
+struct FuncItem
+{
+    wchar_t _itemName[64];
+    PFUNCPLUGINCMD _pFunc;
+    int _cmdID;
+    bool _init2Check;
+    ShortcutKey* _pShKey;
+};
+
+NppData nppData;
+const int nbFunc = 1;
+FuncItem funcItem[nbFunc];
+
+void about()
+{
+    MessageBox(
+        nppData._nppHandle,
+        L"Basware Utility Tools v1.0\n\nThis is the first working build.\nNext feature: Pretty Print XML.",
+        PLUGIN_NAME,
+        MB_OK | MB_ICONINFORMATION
+    );
 }
 
-// Required plugin functions (basic skeleton)
+void setCommand(int index, const wchar_t* itemName, PFUNCPLUGINCMD functionPointer)
+{
+    if (index >= nbFunc)
+        return;
 
-extern "C" __declspec(dllexport) void setInfo(void* data) {}
-extern "C" __declspec(dllexport) const wchar_t* getName() { return pluginName; }
-extern "C" __declspec(dllexport) int getFuncsArray(void** arr) { return 0; }
-extern "C" __declspec(dllexport) void beNotified(void* notifyCode) {}
-extern "C" __declspec(dllexport) LRESULT messageProc(UINT Message, WPARAM wParam, LPARAM lParam) { return TRUE; }
-extern "C" __declspec(dllexport) BOOL isUnicode() { return TRUE; }
+    lstrcpyn(funcItem[index]._itemName, itemName, 64);
+    funcItem[index]._pFunc = functionPointer;
+    funcItem[index]._cmdID = 0;
+    funcItem[index]._init2Check = false;
+    funcItem[index]._pShKey = NULL;
+}
 
-// Entry point
-BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID reserved) {
+extern "C" __declspec(dllexport) void setInfo(NppData notpadPlusData)
+{
+    nppData = notpadPlusData;
+    setCommand(0, L"About", about);
+}
+
+extern "C" __declspec(dllexport) const wchar_t* getName()
+{
+    return PLUGIN_NAME;
+}
+
+extern "C" __declspec(dllexport) FuncItem* getFuncsArray(int* nbF)
+{
+    *nbF = nbFunc;
+    return funcItem;
+}
+
+extern "C" __declspec(dllexport) void beNotified(void* notifyCode)
+{
+}
+
+extern "C" __declspec(dllexport) LRESULT messageProc(UINT Message, WPARAM wParam, LPARAM lParam)
+{
+    return TRUE;
+}
+
+extern "C" __declspec(dllexport) BOOL isUnicode()
+{
+    return TRUE;
+}
+
+BOOL APIENTRY DllMain(HMODULE hModule, DWORD reasonForCall, LPVOID reserved)
+{
     return TRUE;
 }
