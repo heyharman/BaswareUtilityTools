@@ -11,19 +11,113 @@ env:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: windows-2022
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-
-      - name: Show files
+      - name: Create plugin source code
         shell: pwsh
         run: |
-          Write-Host "Current location:"
-          Get-Location
-          Write-Host "Repository files:"
-          Get-ChildItem -Recurse
+          $code = @'
+          #include <windows.h>
+
+          #define PLUGIN_NAME L"Basware Utility Tools"
+
+          struct NppData
+          {
+              HWND _nppHandle;
+              HWND _scintillaMainHandle;
+              HWND _scintillaSecondHandle;
+          };
+
+          typedef void (*PFUNCPLUGINCMD)();
+
+          struct ShortcutKey
+          {
+              bool _isCtrl;
+              bool _isAlt;
+              bool _isShift;
+              unsigned char _key;
+          };
+
+          struct FuncItem
+          {
+              wchar_t _itemName[64];
+              PFUNCPLUGINCMD _pFunc;
+              int _cmdID;
+              bool _init2Check;
+              ShortcutKey* _pShKey;
+          };
+
+          NppData nppData;
+
+          const int nbFunc = 1;
+          FuncItem funcItem[nbFunc];
+
+          void about()
+          {
+              MessageBoxW(
+                  nppData._nppHandle,
+                  L"Basware Utility Tools v1.0\n\nPlugin loaded successfully.\nNext feature: Pretty Print XML.",
+                  PLUGIN_NAME,
+                  MB_OK | MB_ICONINFORMATION
+              );
+          }
+
+          void setCommand(int index, const wchar_t* itemName, PFUNCPLUGINCMD functionPointer)
+          {
+              if (index < 0 || index >= nbFunc)
+              {
+                  return;
+              }
+
+              lstrcpynW(funcItem[index]._itemName, itemName, 64);
+              funcItem[index]._pFunc = functionPointer;
+              funcItem[index]._cmdID = 0;
+              funcItem[index]._init2Check = false;
+              funcItem[index]._pShKey = NULL;
+          }
+
+          extern "C" __declspec(dllexport) void setInfo(NppData notepadPlusData)
+          {
+              nppData = notepadPlusData;
+              setCommand(0, L"About", about);
+          }
+
+          extern "C" __declspec(dllexport) const wchar_t* getName()
+          {
+              return PLUGIN_NAME;
+          }
+
+          extern "C" __declspec(dllexport) FuncItem* getFuncsArray(int* nbF)
+          {
+              *nbF = nbFunc;
+              return funcItem;
+          }
+
+          extern "C" __declspec(dllexport) void beNotified(void* notifyCode)
+          {
+          }
+
+          extern "C" __declspec(dllexport) LRESULT messageProc(UINT Message, WPARAM wParam, LPARAM lParam)
+          {
+              return TRUE;
+          }
+
+          extern "C" __declspec(dllexport) BOOL isUnicode()
+          {
+              return TRUE;
+          }
+
+          BOOL APIENTRY DllMain(HMODULE hModule, DWORD reasonForCall, LPVOID reserved)
+          {
+              return TRUE;
+          }
+          '@
+
+          Set-Content -Path main.cpp -Value $code -Encoding ASCII
+
+          Write-Host "main.cpp created successfully"
+          Get-ChildItem
 
       - name: Build DLL
         shell: pwsh
@@ -45,34 +139,42 @@ jobs:
           $vcvars = Join-Path $vsPath "VC\Auxiliary\Build\vcvars64.bat"
 
           if (!(Test-Path $vcvars)) {
-            throw "vcvars64.bat not found"
+            throw "vcvars64.bat not found at $vcvars"
           }
 
-          if (!(Test-Path "src\main.cpp")) {
-            throw "src\main.cpp not found"
-          }
+          $buildCmd = @"
+          @echo off
+          call "$vcvars"
+          if errorlevel 1 exit /b %errorlevel%
 
-          $cmd = "call ""$vcvars"" && cl /nologo /EHsc /LD /DUNICODE /D_UNICODE src\main.cpp user32.lib /link /OUT:BaswareUtilityTools.dll"
+          cl /nologo /EHsc /LD /DUNICODE /D_UNICODE main.cpp user32.lib /link /OUT:BaswareUtilityTools.dll
+          if errorlevel 1 exit /b %errorlevel%
+          "@
 
-          Write-Host "Running compile command:"
-          Write-Host $cmd
+          Set-Content -Path build.cmd -Value $buildCmd -Encoding ASCII
 
-          cmd.exe /c $cmd
+          cmd.exe /c build.cmd
 
           if ($LASTEXITCODE -ne 0) {
-            throw "Compilation failed with exit code $LASTEXITCODE"
+            throw "Build failed with exit code $LASTEXITCODE"
           }
 
           if (!(Test-Path "BaswareUtilityTools.dll")) {
             throw "BaswareUtilityTools.dll was not created"
           }
 
-      - name: Create plugin ZIP
+          Write-Host "DLL created successfully"
+          Get-ChildItem
+
+      - name: Create plugin package
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path package\BaswareUtilityTools
           Copy-Item BaswareUtilityTools.dll package\BaswareUtilityTools\BaswareUtilityTools.dll
           Compress-Archive -Path package\BaswareUtilityTools -DestinationPath BaswareUtilityTools-x64.zip -Force
+
+          Write-Host "Package created successfully"
+          Get-ChildItem -Recurse package
           Get-ChildItem
 
       - name: Upload plugin package
