@@ -12,12 +12,24 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Setup MSVC
+      - name: Setup MSVC compiler
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Build DLL
+      - name: Check files
+        shell: cmd
         run: |
-          cl /LD src\main.cpp /FeBaswareUtilityTools.dll user32.lib
+          dir
+          dir src
+
+      - name: Build DLL
+        shell: cmd
+        run: |
+          cl /nologo /LD src\main.cpp user32.lib /link /OUT:BaswareUtilityTools.dll
+
+      - name: Show output files
+        shell: cmd
+        run: |
+          dir
 
       - name: Upload DLL
         uses: actions/upload-artifact@v4
