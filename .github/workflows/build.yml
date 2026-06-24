@@ -1,38 +1,75 @@
-name: Build Plugin
+name: Build Basware Utility Tools
 
 on:
   push:
     branches: [ "main" ]
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build:
     runs-on: windows-latest
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v7
 
-      - name: Setup MSVC compiler
-        uses: ilammy/msvc-dev-cmd@v1
-
-      - name: Check files
-        shell: cmd
+      - name: Show repository files
+        shell: pwsh
         run: |
-          dir
-          dir src
+          Write-Host "Current folder:"
+          Get-Location
+          Write-Host "Repository files:"
+          Get-ChildItem -Recurse
 
-      - name: Build DLL
-        shell: cmd
+      - name: Build x64 DLL using Visual Studio Build Tools
+        shell: pwsh
         run: |
-          cl /nologo /LD src\main.cpp user32.lib /link /OUT:BaswareUtilityTools.dll
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
 
-      - name: Show output files
-        shell: cmd
+          if (!(Test-Path $vswhere)) {
+            throw "vswhere.exe not found. Visual Studio Build Tools are not available on this runner."
+          }
+
+          $vsPath = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+
+          if ([string]::IsNullOrWhiteSpace($vsPath)) {
+            throw "Visual Studio C++ build tools not found."
+          }
+
+          Write-Host "Visual Studio path: $vsPath"
+
+          $vcvars = Join-Path $vsPath "VC\Auxiliary\Build\vcvars64.bat"
+
+          if (!(Test-Path $vcvars)) {
+            throw "vcvars64.bat not found."
+          }
+
+          if (!(Test-Path "src\main.cpp")) {
+            throw "src\main.cpp not found. Please confirm the file exists in the repo."
+          }
+
+          cmd /c "`"$vcvars`" && cl /nologo /EHsc /LD /DUNICODE /D_UNICODE src\main.cpp user32.lib /link /OUT:BaswareUtilityTools.dll"
+
+          if (!(Test-Path "BaswareUtilityTools.dll")) {
+            throw "DLL was not created."
+          }
+
+      - name: Prepare plugin package
+        shell: pwsh
         run: |
-          dir
+          New-Item -ItemType Directory -Force -Path package\BaswareUtilityTools
+          Copy-Item BaswareUtilityTools.dll package\BaswareUtilityTools\BaswareUtilityTools.dll
 
-      - name: Upload DLL
+          Compress-Archive -Path package\BaswareUtilityTools -DestinationPath BaswareUtilityTools-x64.zip -Force
+
+          Write-Host "Package created:"
+          Get-ChildItem
+
+      - name: Upload DLL package
         uses: actions/upload-artifact@v4
         with:
-          name: BaswareUtilityTools
-          path: BaswareUtilityTools.dll
+          name: BaswareUtilityTools-x64
+          path: BaswareUtilityTools-x64.zip
