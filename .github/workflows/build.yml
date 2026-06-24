@@ -1,4 +1,4 @@
-name: Build Notepad++ Plugin
+name: Build Plugin
 
 on:
   push:
@@ -9,23 +9,20 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - name: Checkout repo
+    - name: Checkout
       uses: actions/checkout@v3
 
-    - name: Setup MSBuild
-      uses: microsoft/setup-msbuild@v1.3
-
-    - name: Setup Visual Studio
+    - name: Setup MSVC
       uses: ilammy/msvc-dev-cmd@v1
 
-    - name: Build DLL
+    - name: Create DLL
       run: |
-        mkdir build
-        cd build
-        echo Building plugin...
+        echo "#include <windows.h>" > plugin.cpp
+        echo "BOOL APIENTRY DllMain(HMODULE hModule,DWORD reason,LPVOID reserved){return TRUE;}" >> plugin.cpp
+        cl /LD plugin.cpp /FeBaswareUtilityTools.dll
 
-    - name: Upload Artifact
+    - name: Upload DLL
       uses: actions/upload-artifact@v3
       with:
         name: BaswareUtilityTools
-        path: .
+        path: BaswareUtilityTools.dll
