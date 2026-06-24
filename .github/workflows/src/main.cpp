@@ -36,7 +36,7 @@ void about()
 {
     MessageBox(
         nppData._nppHandle,
-        L"Basware Utility Tools v1.0\n\nThis is the first working build.\nNext feature: Pretty Print XML.",
+        L"Basware Utility Tools v1.0\n\nFirst working plugin build.\nNext step: Add Pretty Print XML.",
         PLUGIN_NAME,
         MB_OK | MB_ICONINFORMATION
     );
@@ -45,18 +45,20 @@ void about()
 void setCommand(int index, const wchar_t* itemName, PFUNCPLUGINCMD functionPointer)
 {
     if (index >= nbFunc)
+    {
         return;
+    }
 
-    lstrcpyn(funcItem[index]._itemName, itemName, 64);
+    lstrcpynW(funcItem[index]._itemName, itemName, 64);
     funcItem[index]._pFunc = functionPointer;
     funcItem[index]._cmdID = 0;
     funcItem[index]._init2Check = false;
     funcItem[index]._pShKey = NULL;
 }
 
-extern "C" __declspec(dllexport) void setInfo(NppData notpadPlusData)
+extern "C" __declspec(dllexport) void setInfo(NppData notepadPlusData)
 {
-    nppData = notpadPlusData;
+    nppData = notepadPlusData;
     setCommand(0, L"About", about);
 }
 
