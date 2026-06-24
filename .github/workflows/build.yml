@@ -9,20 +9,18 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - name: Checkout
-      uses: actions/checkout@v3
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
-    - name: Setup MSVC
-      uses: ilammy/msvc-dev-cmd@v1
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
 
-    - name: Create DLL
-      run: |
-        echo "#include <windows.h>" > plugin.cpp
-        echo "BOOL APIENTRY DllMain(HMODULE hModule,DWORD reason,LPVOID reserved){return TRUE;}" >> plugin.cpp
-        cl /LD plugin.cpp /FeBaswareUtilityTools.dll
+      - name: Build DLL
+        run: |
+          cl /LD src\main.cpp /FeBaswareUtilityTools.dll user32.lib
 
-    - name: Upload DLL
-      uses: actions/upload-artifact@v3
-      with:
-        name: BaswareUtilityTools
-        path: BaswareUtilityTools.dll
+      - name: Upload DLL
+        uses: actions/upload-artifact@v4
+        with:
+          name: BaswareUtilityTools
+          path: BaswareUtilityTools.dll
