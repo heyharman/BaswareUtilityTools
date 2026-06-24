@@ -22,7 +22,7 @@ jobs:
         run: |
           Write-Host "Current location:"
           Get-Location
-          Write-Host "Files in repository:"
+          Write-Host "Repository files:"
           Get-ChildItem -Recurse
 
       - name: Build DLL
@@ -52,7 +52,16 @@ jobs:
             throw "src\main.cpp not found"
           }
 
-          cmd.exe /c "call `"$vcvars`" && cl /nologo /EHsc /LD /DUNICODE /D_UNICODE src\main.cpp user32.lib /link /OUT:BaswareUtilityTools.dll"
+          $cmd = "call ""$vcvars"" && cl /nologo /EHsc /LD /DUNICODE /D_UNICODE src\main.cpp user32.lib /link /OUT:BaswareUtilityTools.dll"
+
+          Write-Host "Running compile command:"
+          Write-Host $cmd
+
+          cmd.exe /c $cmd
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "Compilation failed with exit code $LASTEXITCODE"
+          }
 
           if (!(Test-Path "BaswareUtilityTools.dll")) {
             throw "BaswareUtilityTools.dll was not created"
